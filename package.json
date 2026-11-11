@@ -1,0 +1,6 @@
+{
+  "name": "frag-liv",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" }
+}
