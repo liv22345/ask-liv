@@ -70,18 +70,24 @@ export default async function handler(req, res) {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 400, system: RULES, tools: TOOLS, messages: convo })
+        body: JSON.stringify({ model: MODEL, max_tokens: 1024, system: RULES, tools: TOOLS, messages: convo })
       });
       if (!r.ok) { console.error(await r.text()); return res.status(502).json({ error: "Die KI ist gerade nicht erreichbar." }); }
       const data = await r.json();
-      if (data.stop_reason !== "tool_use") {
-        const text = data.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+      const blocks = Array.isArray(data.content) ? data.content : [];
+      const toolUses = blocks.filter(b => b.type === "tool_use");
+      if (toolUses.length === 0) {
+        const text = blocks.filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+        if (!text) {
+          console.log("Leere Antwort", JSON.stringify({ stop_reason: data.stop_reason, types: blocks.map(b => b.type) }));
+          return res.status(200).json({ answer: "Dazu habe ich gerade keine Antwort. Stell die Frage gern noch einmal anders oder schreib Liv an livwohralik@gmail.com.", read });
+        }
         return res.status(200).json({ answer: text, read });
       }
-      convo.push({ role: "assistant", content: data.content });
-      const results = data.content.filter(b => b.type === "tool_use").map(b => {
+      convo.push({ role: "assistant", content: blocks });
+      const results = toolUses.map(b => {
         const s = b.input && b.input.section;
-        if (LABEL[s]) read.push(LABEL[s]);
+        if (LABEL[s] && !read.includes(LABEL[s])) read.push(LABEL[s]);
         return { type: "tool_result", tool_use_id: b.id, content: PROFILE[s] || "Abschnitt nicht gefunden." };
       });
       convo.push({ role: "user", content: results });
