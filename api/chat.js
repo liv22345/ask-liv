@@ -50,7 +50,7 @@ function tooMany(ip) {
 function valid(messages) {
   if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_TURNS) return false;
   return messages.every((m, i) =>
-    m && typeof m.content === "string" && m.content.length > 0 && m.content.length <= MAX_CHARS &&
+    m && typeof m.content === "string" && m.content.length > 0 && m.content.length <= (m.role === "user" ? MAX_CHARS : 4000) &&
     m.role === (i % 2 === 0 ? "user" : "assistant")) && messages.at(-1).role === "user";
 }
 
